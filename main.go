@@ -6,8 +6,6 @@ import (
 	"go/types"
 	"path/filepath"
 
-	"strings"
-
 	"os"
 
 	"path"
@@ -63,56 +61,35 @@ func getSubpackages(packageName string) ([]string, error) {
 	return packages, err
 }
 
-func getInformationFromPackages(packageNames []string) ([]string, error) {
-	information := []string{}
-
-	for _, packageName := range packageNames {
-		packageInformation, err := getInformationFromPackage(packageName)
-
-		if err != nil {
-			return information, err
-		}
-
-		for _, inf := range packageInformation {
-			information = append(information, inf)
-		}
-	}
-
-	return information, nil
-}
-
-func getInformationFromPackage(p string) ([]string, error) {
+func getInformationFromPackages(packageNames []string) (PackageSignatures, error) {
 	var conf loader.Config
-	conf.Import(p)
+
+	for _, pkg := range packageNames {
+		conf.Import(pkg)
+	}
 
 	prog, err := conf.Load()
 	if err != nil {
-		return []string{}, err
+		return PackageSignatures{}, err
 	}
 
-	return getInformationFromProgram(p, prog), nil
+	return getInformationFromProgram(prog), nil
 }
 
-func getInformationFromProgram(basePackage string, prog *loader.Program) []string {
-	rv := []string{}
+func getInformationFromProgram(prog *loader.Program) PackageSignatures {
+	rv := PackageSignatures{}
 
 	for pkg := range prog.AllPackages {
 		path := pkg.Path()
 
-		if strings.Index(path, basePackage) == 0 {
-			scope := pkg.Scope()
-
-			for _, cs := range recurseScope(path, scope) {
-				rv = append(rv, cs)
-			}
-		}
+		rv[path] = getSignatureFromScope(pkg.Scope())
 	}
 
 	return rv
 }
 
-func recurseScope(path string, s *types.Scope) []string {
-	rv := []string{}
+func getSignatureFromScope(s *types.Scope) Signature {
+	rv := NewSignature()
 
 	for _, sn := range s.Names() {
 		lookup := s.Lookup(sn)
@@ -122,40 +99,72 @@ func recurseScope(path string, s *types.Scope) []string {
 			continue
 		}
 
-		//  Extract public fields from the structs.
-		s, isStruct := lookupType.Underlying().(*types.Struct)
-
-		if isStruct {
-			msg := bytes.NewBufferString(fmt.Sprintf("%s type %s struct { ", path, sn))
-
-			for fi := 0; fi < s.NumFields(); fi++ {
-				field := s.Field(fi)
-
-				if field.Exported() {
-					//TODO: Handle nested types instead of using field.Type().String()?
-					msg.WriteString(fmt.Sprintf("%s %s", field.Name(), field.Type().String()))
-
-					if fi < s.NumFields()-2 {
-						msg.WriteString(", ")
-					} else {
-						msg.WriteString(" ")
-					}
-				}
-			}
-
-			msg.WriteRune('}')
-
-			rv = append(rv, msg.String())
-			continue
+		switch lookup.(type) {
+		case *types.Func:
+			rv.Functions = append(rv.Functions, lookup.String())
+			break
+		case *types.Var:
+			rv.Fields = append(rv.Fields, lookup.String())
+			break
+		case *types.Const:
+			value := lookup.(*types.Const).Val().String()
+			rv.Constants = append(rv.Constants, lookup.String()+" = "+value)
+			break
 		}
 
-		rv = append(rv, fmt.Sprintf("%s %s %s", path, sn, lookupType))
+		switch lookupType.Underlying().(type) {
+		case *types.Struct:
+			rv.Structs = append(rv.Structs, renderStruct(sn, lookupType.Underlying().(*types.Struct)))
+			break
+		case *types.Interface:
+			rv.Interfaces = append(rv.Interfaces, lookupType.String())
+			break
+		}
 
+		//  Extract methods.
 		mset := types.NewMethodSet(lookupType)
 		for i := 0; i < mset.Len(); i++ {
-			rv = append(rv, fmt.Sprintf("%s %s %s", path, sn, mset.At(i)))
+			if mset.At(i).Obj().Exported() {
+				rv.Functions = append(rv.Functions, mset.At(i).String())
+			}
 		}
 	}
 
 	return rv
+}
+
+func renderStruct(name string, s *types.Struct) string {
+	msg := bytes.NewBufferString("struct")
+
+	if name != "" {
+		msg.WriteString(" " + name)
+	}
+
+	msg.WriteString(" {")
+
+	fieldCount := s.NumFields()
+
+	for fi := 0; fi < fieldCount; fi++ {
+		field := s.Field(fi)
+
+		if field.Exported() {
+			s, isStruct := field.Type().Underlying().(*types.Struct)
+
+			if isStruct {
+				msg.WriteString(fmt.Sprintf(" %s %s", field.Name(), renderStruct("", s)))
+			} else {
+				msg.WriteString(" " + field.String())
+			}
+
+			if fi < fieldCount-2 {
+				msg.WriteString(",")
+			} else {
+				msg.WriteString(" ")
+			}
+		}
+	}
+
+	msg.WriteString("}")
+
+	return msg.String()
 }

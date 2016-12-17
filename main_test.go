@@ -17,17 +17,85 @@ func Test_GetInformationFromProgram(t *testing.T) {
 	tests := []struct {
 		name     string
 		code     []string
-		expected []string
+		expected Signature
 	}{
 		{
-			name:     "Package level struct",
-			code:     []string{"package nonexistent", "type X struct { Field string }"},
-			expected: []string{"github.com/a-h/nonexistent type X struct { Field string }"},
+			name: "Public functions are extracted",
+			code: []string{"package nonexistent", "func GetString() string { return \"Hello\" }"},
+			expected: Signature{
+				Functions: []string{"func github.com/a-h/nonexistent.GetString() string"},
+			},
 		},
 		{
-			name:     "Package level field",
-			code:     []string{"package nonexistent", "type S string"},
-			expected: []string{"github.com/a-h/nonexistent S github.com/a-h/nonexistent.S"},
+			name:     "Private functions are not extracted",
+			code:     []string{"package nonexistent", "func getString() string { return \"Hello\" }"},
+			expected: Signature{},
+		},
+		{
+			name: "Public structs are extracted, and only their public fields are exported",
+			code: []string{"package nonexistent", "type Test struct { Public string; private string; Public2 string }"},
+			expected: Signature{
+				Structs: []string{"struct Test { field Public string, field Public2 string }"},
+			},
+		},
+		{
+			name: "Public receiver methods are not extracted",
+			code: []string{"package nonexistent", "type Test struct { value string }", "func (t Test) GetString() string { return t.value }"},
+			expected: Signature{
+				Structs:   []string{"struct Test {}"},
+				Functions: []string{"method (github.com/a-h/nonexistent.Test) GetString() string"},
+			},
+		},
+		{
+			name: "Private receiver methods are not extracted",
+			code: []string{"package nonexistent", "type Test struct { value string }", "func (t Test) getString() string { return t.value }"},
+			expected: Signature{
+				Structs: []string{"struct Test {}"},
+			},
+		},
+		{
+			name: "Package level fields should be extracted",
+			code: []string{"package nonexistent", "var Public int"},
+			expected: Signature{
+				Fields: []string{"var github.com/a-h/nonexistent.Public int"},
+			},
+		},
+		{
+			name:     "Private package level fields are not extracted",
+			code:     []string{"package nonexistent", "var private int"},
+			expected: Signature{},
+		},
+		{
+			name: "Public constants should be extracted and should include their value",
+			code: []string{"package nonexistent", "const HTTPNotFound = 400"},
+			expected: Signature{
+				Constants: []string{"const github.com/a-h/nonexistent.HTTPNotFound untyped int = 400"},
+			},
+		},
+		{
+			name:     "Private constants should not be extracted",
+			code:     []string{"package nonexistent", "const httpNotFound = 400"},
+			expected: Signature{},
+		},
+		{
+			name: "Public interfaces should be extracted",
+			code: []string{"package nonexistent", "type Test interface { Close() }"},
+			expected: Signature{
+				Functions:  []string{"method (github.com/a-h/nonexistent.Test) Close()"},
+				Interfaces: []string{"github.com/a-h/nonexistent.Test"},
+			},
+		},
+		{
+			name:     "Types are extracted",
+			code:     []string{"package nonexistent", "type Test int"},
+			expected: Signature{},
+		},
+		{
+			name: "Anonymous nested structs are extracted without public fields",
+			code: []string{"package nonexistent", "type Test struct { A struct{B string; c string} }"},
+			expected: Signature{
+				Structs: []string{"struct Test { A struct { field B string } }"},
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -38,35 +106,54 @@ func Test_GetInformationFromProgram(t *testing.T) {
 			continue
 		}
 
-		actual := recurseScope(basePackage, pkg.Scope())
+		actual := getSignatureFromScope(pkg.Scope())
 
-		if len(actual) != len(tt.expected) {
-			t.Errorf("%s - expected %d extracted, but %d were extracted", tt.name, len(tt.expected), len(actual))
+		compareLengths(tt.name, "Functions", tt.expected.Functions, actual.Functions, t)
+		compareElements(tt.name, "Functions", tt.expected.Functions, actual.Functions, t)
+
+		compareLengths(tt.name, "Fields", tt.expected.Fields, actual.Fields, t)
+		compareElements(tt.name, "Fields", tt.expected.Fields, actual.Fields, t)
+
+		compareLengths(tt.name, "Constants", tt.expected.Constants, actual.Constants, t)
+		compareElements(tt.name, "Constants", tt.expected.Constants, actual.Constants, t)
+
+		compareLengths(tt.name, "Structs", tt.expected.Structs, actual.Structs, t)
+		compareElements(tt.name, "Structs", tt.expected.Structs, actual.Structs, t)
+
+		compareLengths(tt.name, "Interfaces", tt.expected.Interfaces, actual.Interfaces, t)
+		compareElements(tt.name, "Interfaces", tt.expected.Interfaces, actual.Interfaces, t)
+	}
+}
+
+func compareElements(testname string, element string, expected []string, actual []string, t *testing.T) {
+	max := len(actual)
+	if max < len(expected) {
+		max = len(expected)
+	}
+
+	var buf bytes.Buffer
+
+	errorOccurred := false
+	for i := 0; i < max; i++ {
+		expectedItem := getItemOrDefault(expected, i, "<missing>")
+		actualItem := getItemOrDefault(actual, i, "<missing>")
+
+		buf.WriteString(fmt.Sprintf("%s - %d - expected '%s', but got '%s'\n",
+			testname, i, expectedItem, actualItem))
+
+		if actualItem != expectedItem {
+			errorOccurred = true
 		}
+	}
 
-		max := len(actual)
-		if max < len(tt.expected) {
-			max = len(tt.expected)
-		}
+	if errorOccurred {
+		t.Error(buf.String())
+	}
+}
 
-		var buf bytes.Buffer
-
-		errorOccurred := false
-		for i := 0; i < max; i++ {
-			actualLine := getItemOrDefault(actual, i, "<missing>")
-			expectedLine := getItemOrDefault(tt.expected, i, "<missing>")
-
-			buf.WriteString(fmt.Sprintf("%s - %d - expected '%s', but got '%s'\n",
-				tt.name, i, expectedLine, actualLine))
-
-			if actualLine != expectedLine {
-				errorOccurred = true
-			}
-		}
-
-		if errorOccurred {
-			t.Error(buf.String())
-		}
+func compareLengths(testname string, element string, expected []string, actual []string, t *testing.T) {
+	if len(actual) != len(expected) {
+		t.Errorf("%s - expected %d extracted, but %d were extracted", testname, len(expected), len(actual))
 	}
 }
 

@@ -1,5 +1,8 @@
 package example
 
+// ConstantValue is a test constant.
+const ConstantValue = "Test"
+
 var examplePrivateField []string
 
 // ExamplePublicField is a public field.

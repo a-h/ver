@@ -121,11 +121,14 @@ func getSignatureFromScope(s *types.Scope) Signature {
 			break
 		}
 
-		//  Extract methods.
-		mset := types.NewMethodSet(lookupType)
-		for i := 0; i < mset.Len(); i++ {
-			if mset.At(i).Obj().Exported() {
-				rv.Functions = append(rv.Functions, mset.At(i).String())
+		// Extract methods from structs, interfaces and pointers to structs.
+		for _, msetType := range []types.Type{lookupType, types.NewPointer(lookupType)} {
+			mset := types.NewMethodSet(msetType)
+			for i := 0; i < mset.Len(); i++ {
+				method := mset.At(i)
+				if method.Obj().Exported() {
+					rv.Functions = append(rv.Functions, method.String())
+				}
 			}
 		}
 	}

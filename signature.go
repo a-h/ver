@@ -1,6 +1,6 @@
 package main
 
-// PackageSignature is a map of packages to Signatures.
+// PackageSignatures is a map of packages to Signatures.
 type PackageSignatures map[string]Signature
 
 func NewSignature() Signature {

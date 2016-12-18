@@ -21,14 +21,14 @@ func Test_GetInformationFromProgram(t *testing.T) {
 	}{
 		{
 			name: "Public functions are extracted",
-			code: []string{"package nonexistent", "func GetString() string { return \"Hello\" }"},
+			code: []string{"package nonexistent", "func GetStringPackageFunction() string { return \"Hello\" }"},
 			expected: Signature{
-				Functions: []string{"func github.com/a-h/nonexistent.GetString() string"},
+				Functions: []string{"func github.com/a-h/nonexistent.GetStringPackageFunction() string"},
 			},
 		},
 		{
 			name:     "Private functions are not extracted",
-			code:     []string{"package nonexistent", "func getString() string { return \"Hello\" }"},
+			code:     []string{"package nonexistent", "func getStringPackageFunction() string { return \"Hello\" }"},
 			expected: Signature{},
 		},
 		{
@@ -39,11 +39,22 @@ func Test_GetInformationFromProgram(t *testing.T) {
 			},
 		},
 		{
-			name: "Public receiver methods are not extracted",
-			code: []string{"package nonexistent", "type Test struct { value string }", "func (t Test) GetString() string { return t.value }"},
+			name: "Public receiver methods are extracted",
+			code: []string{"package nonexistent", "type Test struct { value string }", "func (t Test) GetStringReceiver() string { return t.value }"},
+			expected: Signature{
+				Structs: []string{"struct Test {}"},
+				Functions: []string{
+					"method (github.com/a-h/nonexistent.Test) GetStringReceiver() string",
+					"method (*github.com/a-h/nonexistent.Test) GetStringReceiver() string",
+				},
+			},
+		},
+		{
+			name: "Public pointer receiver methods are extracted",
+			code: []string{"package nonexistent", "type Test struct { value string }", "func (t *Test) GetStringPointerReceiver() string { return t.value }"},
 			expected: Signature{
 				Structs:   []string{"struct Test {}"},
-				Functions: []string{"method (github.com/a-h/nonexistent.Test) GetString() string"},
+				Functions: []string{"method (*github.com/a-h/nonexistent.Test) GetStringPointerReceiver() string"},
 			},
 		},
 		{

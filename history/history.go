@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -20,7 +19,7 @@ func Clone(repo string) (Git, error) {
 	}
 
 	g := Git{
-		repo: target,
+		Location: target,
 	}
 
 	out, err := exec.Command("git", "clone", repo, target).Output()
@@ -38,7 +37,8 @@ func Clone(repo string) (Git, error) {
 
 // Git is a git repository, cloned from the Web.
 type Git struct {
-	repo string
+	// Location is the location on disk, e.g. /var/tmp/ver_history_12312321/
+	Location string
 }
 
 // History is the data stored within a git log output.
@@ -53,7 +53,7 @@ type History struct {
 
 // CleanUp cleans up the temporary directory where the git repo has been stored.
 func (g Git) CleanUp() {
-	os.RemoveAll(g.repo)
+	// os.RemoveAll(g.Location)
 }
 
 // Log gets the git log of the repository.
@@ -64,7 +64,7 @@ func (g Git) Log() ([]History, error) {
 	out, err := exec.Command("git", "log", "--reverse", logfmt).Output()
 
 	if err != nil {
-		return history, fmt.Errorf("failed to get the log of %s with err '%v' and message '%s'", g.repo, err, string(out))
+		return history, fmt.Errorf("failed to get the log of %s with err '%v' and message '%s'", g.Location, err, string(out))
 	}
 
 	for _, line := range strings.Split(string(out), "\n") {
@@ -79,7 +79,20 @@ func (g Git) Log() ([]History, error) {
 }
 
 // Get extracts all of the files from the given commit into a directory.
-func Get(id string) (directory string, clearup func()) {
-	//TODO: Implement.
-	return "", func() { log.Print("hello") }
+func (g Git) Get(hash string) error {
+	os.Chdir(g.Location)
+
+	cmd := exec.Command("git", "reset", "--hard", hash)
+	cmd.Dir = g.Location
+	out, err := cmd.Output()
+
+	if err != nil {
+		return fmt.Errorf("failed to checkout a specific hash of %s with err '%v' and message '%s'", g.Location, err, string(out))
+	}
+
+	return nil
+}
+
+func (g Git) Revert() error {
+	os.Chdir(g.Location)
 }

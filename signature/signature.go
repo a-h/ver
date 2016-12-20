@@ -23,11 +23,11 @@ func NewSignature() Signature {
 
 // Signature is the exported aspects of a type.
 type Signature struct {
-	Functions  []string
-	Fields     []string
-	Constants  []string
-	Structs    []string
-	Interfaces []string
+	Functions  []string `json:"functions"`
+	Fields     []string `json:"fields"`
+	Constants  []string `json:"constants"`
+	Structs    []string `json:"structs"`
+	Interfaces []string `json:"interfaces"`
 }
 
 // GetFromDirectory gets the signature of a directory of Go files.

@@ -101,7 +101,7 @@ func main() {
 
 // CommitSignature is the signature of a commit.
 type CommitSignature struct {
-	Commit    history.History
-	Signature signature.PackageSignatures
-	Error     error
+	Commit    history.History             `json:"commit"`
+	Signature signature.PackageSignatures `json:"signature"`
+	Error     error                       `json:"error"`
 }

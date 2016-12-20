@@ -49,9 +49,7 @@ func GetFromDirectory(dir string) (PackageSignatures, error) {
 			return PackageSignatures{}, err
 		}
 
-		for _, fn := range filenames {
-			conf.CreateFromFilenames(d, fn)
-		}
+		conf.CreatePkgs = append(conf.CreatePkgs, loader.PkgSpec{Path: d, Filenames: filenames})
 	}
 
 	prog, err := conf.Load()
@@ -60,7 +58,7 @@ func GetFromDirectory(dir string) (PackageSignatures, error) {
 		return PackageSignatures{}, err
 	}
 
-	return GetFromProgram(prog), err
+	return GetFromProgram(prog, dir), err
 }
 
 func walkDirectories(dir string) ([]string, error) {
@@ -71,9 +69,15 @@ func walkDirectories(dir string) ([]string, error) {
 			return err
 		}
 
-		if f.IsDir() {
-			rv = append(rv, walkedPath)
+		if f.IsDir() && f.Name()[0] == '.' {
+			return filepath.SkipDir
 		}
+
+		if !f.IsDir() {
+			return nil
+		}
+
+		rv = append(rv, walkedPath)
 
 		return nil
 	})
@@ -91,7 +95,7 @@ func getFiles(dir string) ([]string, error) {
 	}
 
 	for _, f := range fi {
-		if !f.IsDir() && strings.HasSuffix(f.Name(), ".go") {
+		if !f.IsDir() && filepath.Ext(f.Name()) == ".go" {
 			files = append(files, path.Join(dir, f.Name()))
 		}
 	}
@@ -100,11 +104,17 @@ func getFiles(dir string) ([]string, error) {
 }
 
 // GetFromProgram gets a set of signatures for a program loaded with the loader.Config.
-func GetFromProgram(prog *loader.Program) PackageSignatures {
+// Only packages with a matching prefix will be extracted.
+func GetFromProgram(prog *loader.Program, prefix string) PackageSignatures {
 	rv := PackageSignatures{}
 
 	for pkg := range prog.AllPackages {
 		path := pkg.Path()
+
+		// Filter by prefix.
+		if strings.Index(path, prefix) != 0 {
+			continue
+		}
 
 		rv[path] = GetFromScope(pkg.Scope())
 	}

@@ -23,30 +23,21 @@ func TestThatItemsAreExtracted(t *testing.T) {
 		t.Fatal("failed to get subpackages: " + err.Error())
 	}
 
-	if len(ps) != 2 {
-		t.Errorf("Expected %d packages to be discovered, got %d packages", 2, len(ps))
+	if len(ps) != 1 {
+		t.Errorf("Expected 1 package to be discovered, got %d packages", len(ps))
 	}
 
 	for name, signature := range ps {
 		if strings.HasSuffix(name, "example") {
 			assert("example Constants", 1, len(signature.Constants), t)
 			assert("example Fields", 1, len(signature.Fields), t)
-			assert("example Functions", 6, len(signature.Functions), t)
+			assert("example Functions", 7, len(signature.Functions), t)
 			assert("example Interfaces", 1, len(signature.Interfaces), t)
 			assert("example Structs", 4, len(signature.Structs), t)
 			continue
 		}
 
-		if strings.HasSuffix(name, "example2") {
-			assert("example2 Constants", 0, len(signature.Constants), t)
-			assert("example2 Fields", 1, len(signature.Fields), t)
-			assert("example2 Functions", 0, len(signature.Functions), t)
-			assert("example2 Interfaces", 0, len(signature.Interfaces), t)
-			assert("example2 Structs", 1, len(signature.Structs), t)
-			continue
-		}
-
-		t.Fatalf("Expected example and example2 - didn't expect the path %s", name)
+		t.Fatalf("Expected example - didn't expect the path %s", name)
 	}
 }
 

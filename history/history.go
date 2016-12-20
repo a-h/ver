@@ -22,7 +22,7 @@ func Clone(repo string) (Git, error) {
 		Location: target,
 	}
 
-	out, err := exec.Command("git", "clone", repo, target).Output()
+	out, err := exec.Command("git", "clone", repo, target).CombinedOutput()
 
 	if err != nil {
 		return g, fmt.Errorf("failed to clone repo %s to temp directory %s with err '%v' and message %s",
@@ -61,7 +61,7 @@ func (g Git) Log() ([]History, error) {
 	history := []History{}
 
 	logfmt := `--pretty=format:{ "commit": "%H", "subject": "%f", "name": "%aN", "email": "%aE", "date": "%aI"}`
-	out, err := exec.Command("git", "log", "--reverse", logfmt).Output()
+	out, err := exec.Command("git", "log", "--reverse", logfmt).CombinedOutput()
 
 	if err != nil {
 		return history, fmt.Errorf("failed to get the log of %s with err '%v' and message '%s'", g.Location, err, string(out))
@@ -82,12 +82,28 @@ func (g Git) Log() ([]History, error) {
 func (g Git) Get(hash string) error {
 	os.Chdir(g.Location)
 
-	cmd := exec.Command("git", "reset", "--hard", hash)
+	cmd := exec.Command("git", "checkout", hash, "-f")
 	cmd.Dir = g.Location
-	out, err := cmd.Output()
+	out, err := cmd.CombinedOutput()
 
 	if err != nil {
-		return fmt.Errorf("failed to checkout a specific hash of %s with err '%v' and message '%s'", g.Location, err, string(out))
+		return fmt.Errorf("failed to checkout hash %s in repo at %s with err '%v' message '%s'", hash, g.Location, err, string(out))
+
+	}
+
+	return nil
+}
+
+// Fetch the history from the remote.
+func (g Git) Fetch() error {
+	os.Chdir(g.Location)
+
+	cmd := exec.Command("git", "fetch", "--all")
+	cmd.Dir = g.Location
+	out, err := cmd.CombinedOutput()
+
+	if err != nil {
+		return fmt.Errorf("failed to fetch all in repo at %s with err '%v' message '%s'", g.Location, err, string(out))
 	}
 
 	return nil
@@ -95,4 +111,14 @@ func (g Git) Get(hash string) error {
 
 func (g Git) Revert() error {
 	os.Chdir(g.Location)
+
+	cmd := exec.Command("git", "checkout", "master", "-f")
+	cmd.Dir = g.Location
+	out, err := cmd.CombinedOutput()
+
+	if err != nil {
+		return fmt.Errorf("failed to revert %s back to head with err '%v' and message '%s'", g.Location, err, string(out))
+	}
+
+	return nil
 }

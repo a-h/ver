@@ -1,5 +1,11 @@
 package example
 
+import (
+	"fmt"
+
+	"github.com/a-h/ver/example/example2"
+)
+
 // ConstantValue is a test constant.
 const ConstantValue = "Test"
 
@@ -65,4 +71,9 @@ func (p *PublicStructC) ReceiverPointer() string {
 type PublicStructD struct {
 	PublicStructA
 	PublicStructB
+}
+
+func TestPackageReference() {
+	x := example2.TopLevel{}
+	fmt.Println(x)
 }

@@ -53,7 +53,7 @@ type History struct {
 
 // CleanUp cleans up the temporary directory where the git repo has been stored.
 func (g Git) CleanUp() {
-	// os.RemoveAll(g.Location)
+	os.RemoveAll(g.Location)
 }
 
 // Log gets the git log of the repository.
@@ -61,7 +61,7 @@ func (g Git) Log() ([]History, error) {
 	history := []History{}
 
 	logfmt := `--pretty=format:{ "commit": "%H", "subject": "%f", "name": "%aN", "email": "%aE", "date": "%aI"}`
-	out, err := exec.Command("git", "log", "--reverse", logfmt).CombinedOutput()
+	out, err := exec.Command("git", "log", "--first-parent", "master", "--reverse", logfmt).CombinedOutput()
 
 	if err != nil {
 		return history, fmt.Errorf("failed to get the log of %s with err '%v' and message '%s'", g.Location, err, string(out))
@@ -88,7 +88,6 @@ func (g Git) Get(hash string) error {
 
 	if err != nil {
 		return fmt.Errorf("failed to checkout hash %s in repo at %s with err '%v' message '%s'", hash, g.Location, err, string(out))
-
 	}
 
 	return nil
@@ -109,6 +108,7 @@ func (g Git) Fetch() error {
 	return nil
 }
 
+// Revert the temporary repository back to HEAD.
 func (g Git) Revert() error {
 	os.Chdir(g.Location)
 

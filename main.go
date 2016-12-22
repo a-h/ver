@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/a-h/ver/diff"
 	"github.com/a-h/ver/history"
 	"github.com/a-h/ver/signature"
 
@@ -84,19 +85,84 @@ func main() {
 		return
 	}
 
-	for _, cs := range signatures {
-		if cs.Error != nil {
-			continue
-		}
+	version := Version{}
 
-		fmt.Println()
-		fmt.Printf("Commit %s\n", cs.Commit.Commit)
+	if len(signatures) > 0 {
+		current := signatures[0]
 
-		for k, v := range cs.Signature {
-			fmt.Printf("Package %s { Constants: %d, Fields: %d, Functions: %d, Interfaces: %d, Structs %d }\n", k,
-				len(v.Constants), len(v.Fields), len(v.Functions), len(v.Interfaces), len(v.Structs))
+		for _, cs := range signatures[1:] {
+			if cs.Error != nil {
+				continue
+			}
+
+			// Calculate the diff and add it to the history.
+			diff := diff.Calculate(current.Signature, cs.Signature)
+			delta := calculateDelta(diff)
+			version := addDeltaToVersion(version, delta)
+
+			fmt.Println()
+			fmt.Printf("Commit %s\n", cs.Commit.Commit)
+			fmt.Printf("Version: %s\n", version.String())
+
+			for k, v := range cs.Signature {
+				fmt.Printf("Package %s { Constants: %d, Fields: %d, Functions: %d, Interfaces: %d, Structs %d }\n", k,
+					len(v.Constants), len(v.Fields), len(v.Functions), len(v.Interfaces), len(v.Structs))
+			}
+			fmt.Println()
 		}
-		fmt.Println()
+	}
+}
+
+func addDeltaToVersion(v Version, d Version) Version {
+	return Version{
+		Major: v.Major + d.Major,
+		Minor: v.Minor + d.Minor,
+		Build: v.Build + d.Build,
+	}
+}
+
+func calculateDelta(sd diff.SummaryDiff) Version {
+	d := Version{
+		Minor: 1, // Always increment the build.
+	}
+
+	binaryCompatibilityBroken := false
+	newExportedData := false
+
+	if sd.PackageChanges.Added > 0 {
+		newExportedData = true
+	}
+
+	if sd.PackageChanges.Removed > 0 {
+		binaryCompatibilityBroken = true
+	}
+
+	for _, pkg := range sd.Packages {
+		updateBasedOn(pkg.Constants, &binaryCompatibilityBroken, &newExportedData)
+		updateBasedOn(pkg.Fields, &binaryCompatibilityBroken, &newExportedData)
+		updateBasedOn(pkg.Functions, &binaryCompatibilityBroken, &newExportedData)
+		updateBasedOn(pkg.Interfaces, &binaryCompatibilityBroken, &newExportedData)
+		updateBasedOn(pkg.Structs, &binaryCompatibilityBroken, &newExportedData)
+	}
+
+	if binaryCompatibilityBroken {
+		d.Major = 1
+	}
+
+	if newExportedData {
+		d.Minor = 1
+	}
+
+	return d
+}
+
+func updateBasedOn(d diff.Diff, binaryCompatibilityBroken *bool, newExportedData *bool) {
+	if d.Added > 0 {
+		*newExportedData = true
+	}
+
+	if d.Removed > 0 {
+		*binaryCompatibilityBroken = true
 	}
 }
 
@@ -105,6 +171,10 @@ type Version struct {
 	Major int `json:"major"`
 	Minor int `json:"minor"`
 	Build int `json:"build"`
+}
+
+func (v Version) String() string {
+	return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Build)
 }
 
 // CommitSignature is the signature of a commit.

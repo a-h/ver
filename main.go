@@ -91,12 +91,20 @@ func main() {
 
 		fmt.Println()
 		fmt.Printf("Commit %s\n", cs.Commit.Commit)
+
 		for k, v := range cs.Signature {
 			fmt.Printf("Package %s { Constants: %d, Fields: %d, Functions: %d, Interfaces: %d, Structs %d }\n", k,
 				len(v.Constants), len(v.Fields), len(v.Functions), len(v.Interfaces), len(v.Structs))
 		}
 		fmt.Println()
 	}
+}
+
+// Version represents a major, minor and build version.
+type Version struct {
+	Major int `json:"major"`
+	Minor int `json:"minor"`
+	Build int `json:"build"`
 }
 
 // CommitSignature is the signature of a commit.

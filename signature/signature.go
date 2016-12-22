@@ -30,7 +30,7 @@ type Signature struct {
 	Interfaces []string `json:"interfaces"`
 }
 
-// GetFromDirectory gets the signature of a directory of Go files.
+// GetFromDirectory gets the signature of a directory of Go files, including subdirectories.
 func GetFromDirectory(dir string) (PackageSignatures, error) {
 	// Iterate subdirectories too.
 	directories, err := walkDirectories(dir)

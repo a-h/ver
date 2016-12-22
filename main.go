@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/a-h/ver/diff"
-	"github.com/a-h/ver/history"
+	"github.com/a-h/ver/git"
 	"github.com/a-h/ver/signature"
 
 	"os"
@@ -21,7 +21,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	gitRepo, err := history.Clone(*repo)
+	gitRepo, err := git.Clone(*repo)
 	defer gitRepo.CleanUp()
 
 	if err != nil {
@@ -54,10 +54,10 @@ func main() {
 			Commit: h,
 		}
 
-		err := gitRepo.Get(h.Commit)
+		err := gitRepo.Get(h.Hash)
 
 		if err != nil {
-			cs.Error = fmt.Errorf("Failed to get commit %s with error: %s\n", h.Commit, err.Error())
+			cs.Error = fmt.Errorf("Failed to get commit %s with error: %s\n", h.Hash, err.Error())
 			signatures[idx] = *cs
 			continue
 		}
@@ -65,7 +65,8 @@ func main() {
 		sig, err := signature.GetFromDirectory(gitRepo.Location)
 
 		if err != nil {
-			cs.Error = fmt.Errorf("Failed to get signatures of package at commit %s with error: %s\n", h.Commit, err.Error())
+			cs.Error = fmt.Errorf("Failed to get signatures of package at commit %s with error: %s\n",
+				h.Hash, err.Error())
 			continue
 		}
 
@@ -92,16 +93,19 @@ func main() {
 
 		for _, cs := range signatures[1:] {
 			if cs.Error != nil {
+				// Add 1 to the build, even though it wasn't successfully handled.
+				version = addDeltaToVersion(version, Version{Build: 1})
 				continue
 			}
 
-			// Calculate the diff and add it to the history.
+			// Calculate the diff against the previous version.
 			diff := diff.Calculate(current.Signature, cs.Signature)
-			delta := calculateDelta(diff)
-			version := addDeltaToVersion(version, delta)
+			// Work out what the version increment should be.
+			delta := calculateVersionDelta(diff)
+			version = addDeltaToVersion(version, delta)
 
 			fmt.Println()
-			fmt.Printf("Commit %s\n", cs.Commit.Commit)
+			fmt.Printf("Commit %s\n", cs.Commit.Hash)
 			fmt.Printf("Version: %s\n", version.String())
 
 			for k, v := range cs.Signature {
@@ -121,8 +125,8 @@ func addDeltaToVersion(v Version, d Version) Version {
 	}
 }
 
-func calculateDelta(sd diff.SummaryDiff) Version {
-	d := Version{
+func calculateVersionDelta(sd diff.SummaryDiff) Version {
+	d := &Version{
 		Minor: 1, // Always increment the build.
 	}
 
@@ -153,7 +157,7 @@ func calculateDelta(sd diff.SummaryDiff) Version {
 		d.Minor = 1
 	}
 
-	return d
+	return *d
 }
 
 func updateBasedOn(d diff.Diff, binaryCompatibilityBroken *bool, newExportedData *bool) {
@@ -166,20 +170,9 @@ func updateBasedOn(d diff.Diff, binaryCompatibilityBroken *bool, newExportedData
 	}
 }
 
-// Version represents a major, minor and build version.
-type Version struct {
-	Major int `json:"major"`
-	Minor int `json:"minor"`
-	Build int `json:"build"`
-}
-
-func (v Version) String() string {
-	return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Build)
-}
-
 // CommitSignature is the signature of a commit.
 type CommitSignature struct {
-	Commit    history.History             `json:"commit"`
+	Commit    git.Commit                  `json:"commit"`
 	Signature signature.PackageSignatures `json:"signature"`
 	Error     error                       `json:"error"`
 }

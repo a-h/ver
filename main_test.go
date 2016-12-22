@@ -6,6 +6,7 @@ import (
 
 	"strings"
 
+	"github.com/a-h/ver/diff"
 	"github.com/a-h/ver/signature"
 )
 import "os"
@@ -53,5 +54,27 @@ func TestThatItemsAreExtracted(t *testing.T) {
 func assert(name string, expected int, actual int, t *testing.T) {
 	if actual != expected {
 		t.Errorf("Test '%s' failed, expected %d, got %d", name, expected, actual)
+	}
+}
+
+func TestThatBinaryCompatibilityAndNewExportedDataCanBeUpdated(t *testing.T) {
+	binaryCompatibilityBroken := false
+	newExportedData := false
+	updateBasedOn(diff.Diff{Added: 1, Removed: 1}, &binaryCompatibilityBroken, &newExportedData)
+
+	if !binaryCompatibilityBroken {
+		t.Errorf("Failed to update the binaryCompatibilityBroken variable.")
+	}
+
+	if !newExportedData {
+		t.Errorf("Failed to update the newExportedData variable.")
+	}
+}
+
+func TestThatVersionsCanBeUpdated(t *testing.T) {
+	v2 := addDeltaToVersion(Version{Major: 1, Minor: 1, Build: 1}, Version{Major: 1, Minor: 1, Build: 1})
+
+	if v2.String() != "2.2.2" {
+		t.Errorf("Expected %s, but got %s", "2.2.2", v2.String())
 	}
 }

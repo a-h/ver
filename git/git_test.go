@@ -1,4 +1,4 @@
-package history
+package git
 
 import (
 	"reflect"
@@ -25,9 +25,9 @@ func TestThatARepoCanBeCloned(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected := []History{
+	expected := []Commit{
 		{
-			Commit:  "f5ea0f3b4f65fa179967d4d4d4709662ffc711b8",
+			Hash:    "f5ea0f3b4f65fa179967d4d4d4709662ffc711b8",
 			Subject: "First-commit",
 			Name:    "Adrian Hesketh",
 			Email:   "adrianhesketh@hushmail.com",

@@ -1,4 +1,4 @@
-package history
+package git
 
 import (
 	"encoding/json"
@@ -41,9 +41,9 @@ type Git struct {
 	Location string
 }
 
-// History is the data stored within a git log output.
-type History struct {
-	Commit  string `json:"commit"`
+// Commit is the data stored within a git log output.
+type Commit struct {
+	Hash    string `json:"hash"`
 	Subject string `json:"subject"`
 	// Name is the author name.
 	Name  string    `json:"name"`
@@ -57,10 +57,10 @@ func (g Git) CleanUp() {
 }
 
 // Log gets the git log of the repository.
-func (g Git) Log() ([]History, error) {
-	history := []History{}
+func (g Git) Log() ([]Commit, error) {
+	history := []Commit{}
 
-	logfmt := `--pretty=format:{ "commit": "%H", "subject": "%f", "name": "%aN", "email": "%aE", "date": "%aI"}`
+	logfmt := `--pretty=format:{ "hash": "%H", "subject": "%f", "name": "%aN", "email": "%aE", "date": "%aI"}`
 	out, err := exec.Command("git", "log", "--first-parent", "master", "--reverse", logfmt).CombinedOutput()
 
 	if err != nil {
@@ -68,7 +68,7 @@ func (g Git) Log() ([]History, error) {
 	}
 
 	for _, line := range strings.Split(string(out), "\n") {
-		h := &History{}
+		h := &Commit{}
 		if err := json.Unmarshal([]byte(line), &h); err != nil {
 			return history, fmt.Errorf("failed to parse log line '%s' with err: %v", line, err)
 		}

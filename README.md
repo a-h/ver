@@ -128,4 +128,4 @@ Version: 0.16.19
  * Reduce the version delta severity of adding new fields to structs.
  * Simplify the output of the tool, especially when a commit can't be parsed 
    due to errors in the source code (e.g. by having verbose / non-verbose mode).
- * Increase processing speed.
+ * Increase processing speed, e.g. by storing the signature of past commits to disk to avoid recalculation.

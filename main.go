@@ -11,7 +11,7 @@ import (
 	"os"
 )
 
-var repo = flag.String("r", "", "The git repo to analyse.")
+var repo = flag.String("r", "", "The git repo to clone and analyse, e.g. https://github.com/a-h/ver")
 
 func main() {
 	flag.Parse()
@@ -86,6 +86,10 @@ func main() {
 		return
 	}
 
+	calculateVersionsFromSignatures(signatures)
+}
+
+func calculateVersionsFromSignatures(signatures []CommitSignature) {
 	version := Version{}
 
 	if len(signatures) > 0 {
@@ -107,12 +111,6 @@ func main() {
 			fmt.Println()
 			fmt.Printf("Commit %s\n", cs.Commit.Hash)
 			fmt.Printf("Version: %s\n", version.String())
-
-			for k, v := range cs.Signature {
-				fmt.Printf("Package %s { Constants: %d, Fields: %d, Functions: %d, Interfaces: %d, Structs %d }\n", k,
-					len(v.Constants), len(v.Fields), len(v.Functions), len(v.Interfaces), len(v.Structs))
-			}
-			fmt.Println()
 		}
 	}
 }
@@ -127,7 +125,7 @@ func addDeltaToVersion(v Version, d Version) Version {
 
 func calculateVersionDelta(sd diff.SummaryDiff) Version {
 	d := &Version{
-		Minor: 1, // Always increment the build.
+		Build: 1, // Always increment the build.
 	}
 
 	binaryCompatibilityBroken := false

@@ -1,15 +1,14 @@
 package main
 
 import (
+	"os"
 	"path"
-	"testing"
-
 	"strings"
+	"testing"
 
 	"github.com/a-h/ver/diff"
 	"github.com/a-h/ver/signature"
 )
-import "os"
 
 func TestThatItemsAreExtracted(t *testing.T) {
 	wd, err := os.Getwd()
@@ -76,5 +75,55 @@ func TestThatVersionsCanBeUpdated(t *testing.T) {
 
 	if v2.String() != "2.2.2" {
 		t.Errorf("Expected %s, but got %s", "2.2.2", v2.String())
+	}
+}
+
+func TestThatVersionDeltasCanBeCalculated(t *testing.T) {
+	tests := []struct {
+		name     string
+		sd       diff.SummaryDiff
+		expected Version
+	}{
+		{
+			name: "Package removed",
+			sd: diff.SummaryDiff{
+				PackageChanges: diff.Diff{Removed: 1},
+			},
+			expected: Version{Major: 1, Minor: 0, Build: 1},
+		},
+		{
+			name: "Package added",
+			sd: diff.SummaryDiff{
+				PackageChanges: diff.Diff{Added: 1},
+			},
+			expected: Version{Major: 0, Minor: 1, Build: 1},
+		},
+		{
+			name: "Function removed",
+			sd: diff.SummaryDiff{
+				Packages: []diff.PackageDiff{
+					diff.PackageDiff{
+						Functions: diff.Diff{Removed: 1},
+					},
+				},
+			},
+			expected: Version{Major: 1, Minor: 0, Build: 1},
+		},
+		{
+			name: "Function added",
+			sd: diff.SummaryDiff{
+				Packages: []diff.PackageDiff{
+					diff.PackageDiff{
+						Functions: diff.Diff{Added: 1},
+					},
+				},
+			},
+			expected: Version{Major: 0, Minor: 1, Build: 1},
+		},
+	}
+	for _, tt := range tests {
+		if actual := calculateVersionDelta(tt.sd); tt.expected != actual {
+			t.Errorf("%q. Expected version %s, but got %s", tt.name, tt.expected, actual)
+		}
 	}
 }

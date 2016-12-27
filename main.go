@@ -109,7 +109,8 @@ func calculateVersionsFromSignatures(signatures []CommitSignature) {
 			version = addDeltaToVersion(version, delta)
 
 			fmt.Println()
-			fmt.Printf("Commit %s\n", cs.Commit.Hash)
+			fmt.Printf("Commit: %s\n", cs.Commit.Hash)
+			fmt.Printf("Commit: %s\n", cs.Commit.Date())
 			fmt.Printf("Version: %s\n", version.String())
 		}
 	}

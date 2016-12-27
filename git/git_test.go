@@ -27,11 +27,11 @@ func TestThatARepoCanBeCloned(t *testing.T) {
 
 	expected := []Commit{
 		{
-			Hash:    "f5ea0f3b4f65fa179967d4d4d4709662ffc711b8",
-			Subject: "First-commit",
-			Name:    "Adrian Hesketh",
-			Email:   "adrianhesketh@hushmail.com",
-			Date:    time.Date(2016, 12, 17, 15, 47, 57, 0, time.Local),
+			Hash:      "f5ea0f3b4f65fa179967d4d4d4709662ffc711b8",
+			Subject:   "First-commit",
+			Name:      "Adrian Hesketh",
+			Email:     "adrianhesketh@hushmail.com",
+			Timestamp: 1481989677,
 		},
 	}
 
@@ -41,6 +41,13 @@ func TestThatARepoCanBeCloned(t *testing.T) {
 
 			if !reflect.DeepEqual(e, a) {
 				t.Errorf("Expected a commit of %v, but got %v", e, a)
+			}
+
+			if e.Date() != time.Date(2016, 12, 17, 15, 47, 57, 0, time.Local) {
+				t.Errorf("Converting the timestamp from %d should have returned %v, but returned %v",
+					e.Timestamp,
+					time.Date(2016, 12, 17, 15, 47, 57, 0, time.Local),
+					e.Date())
 			}
 		}
 	}

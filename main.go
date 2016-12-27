@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os/exec"
+	"strings"
 
 	"github.com/a-h/ver/diff"
 	"github.com/a-h/ver/git"
@@ -34,7 +36,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	fmt.Printf("Cloned repo %s into %s\n", *repo, gitRepo.Location)
+	fmt.Printf("Cloned repo %s into %s\n", *repo, gitRepo.PackageDirectory())
 
 	history, err := gitRepo.Log()
 
@@ -62,11 +64,20 @@ func main() {
 			continue
 		}
 
-		sig, err := signature.GetFromDirectory(gitRepo.Location)
+		err = goget(gitRepo.BaseLocation, gitRepo.PackageDirectory())
+
+		if err != nil {
+			cs.Error = err
+			signatures[idx] = *cs
+			continue
+		}
+
+		sig, err := signature.GetFromDirectory(gitRepo.BaseLocation, gitRepo.PackageDirectory())
 
 		if err != nil {
 			cs.Error = fmt.Errorf("Failed to get signatures of package at commit %s with error: %s\n",
 				h.Hash, err.Error())
+			signatures[idx] = *cs
 			continue
 		}
 
@@ -83,10 +94,39 @@ func main() {
 	}
 
 	if fatalError {
+		fmt.Printf("Failed with fatal error.\n")
 		return
 	}
 
+	fmt.Printf("About to calcaulate signatures...\n")
+
 	calculateVersionsFromSignatures(signatures)
+}
+
+func goget(gopath string, location string) error {
+	os.Chdir(location)
+
+	// Set the path, the Go tools take the first GOPATH in the set.
+	env := os.Environ()
+
+	for i, v := range env {
+		if strings.HasPrefix(v, "GOPATH=") {
+			env[i] = fmt.Sprintf("GOPATH=%s", gopath)
+			break
+		}
+	}
+
+	// Get the stuff.
+	cmd := exec.Command("go", "get", "./...")
+	cmd.Env = env
+	cmd.Dir = location
+	out, err := cmd.CombinedOutput()
+
+	if err != nil {
+		return fmt.Errorf("failed to go get all in repo with gopath %s at directory %s with err '%v' message '%s'", gopath, location, err, string(out))
+	}
+
+	return nil
 }
 
 func calculateVersionsFromSignatures(signatures []CommitSignature) {
@@ -99,6 +139,12 @@ func calculateVersionsFromSignatures(signatures []CommitSignature) {
 			if cs.Error != nil {
 				// Add 1 to the build, even though it wasn't successfully handled.
 				version = addDeltaToVersion(version, Version{Build: 1})
+
+				fmt.Println()
+				fmt.Printf("Commit: %s\n", cs.Commit.Hash)
+				fmt.Printf("Commit: %s\n", cs.Commit.Subject)
+				fmt.Printf("Date: %s\n", cs.Commit.Date())
+				fmt.Printf("Error: %s\n", cs.Error.Error())
 				continue
 			}
 
@@ -110,7 +156,8 @@ func calculateVersionsFromSignatures(signatures []CommitSignature) {
 
 			fmt.Println()
 			fmt.Printf("Commit: %s\n", cs.Commit.Hash)
-			fmt.Printf("Commit: %s\n", cs.Commit.Date())
+			fmt.Printf("Subject: %s\n", cs.Commit.Subject)
+			fmt.Printf("Date: %s\n", cs.Commit.Date())
 			fmt.Printf("Version: %s\n", version.String())
 		}
 	}

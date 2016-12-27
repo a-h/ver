@@ -122,6 +122,16 @@ Commit e6d0e02001850e7cf4cddf83b0205331ea85d0f5
 Version: 0.16.19
 ```
 
+# Build and Execution in Docker
+
+```
+docker build -t ver .
+```
+
+```
+docker run ver ver -r https://github.com/a-h/terminator
+``` 
+
 # Possible improvements
 
  * Avoid having to clone the repo, have the option to take in an existing repo.

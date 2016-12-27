@@ -3,6 +3,7 @@ package signature
 import (
 	"bytes"
 	"fmt"
+	"go/build"
 	"go/types"
 	"io/ioutil"
 	"os"
@@ -31,7 +32,7 @@ type Signature struct {
 }
 
 // GetFromDirectory gets the signature of a directory of Go files, including subdirectories.
-func GetFromDirectory(dir string) (PackageSignatures, error) {
+func GetFromDirectory(gopath string, dir string) (PackageSignatures, error) {
 	// Iterate subdirectories too.
 	directories, err := walkDirectories(dir)
 
@@ -40,7 +41,11 @@ func GetFromDirectory(dir string) (PackageSignatures, error) {
 	}
 
 	// Import the directories
-	var conf loader.Config
+	ctx := build.Default
+	ctx.GOPATH = gopath
+	conf := loader.Config{
+		Build: &ctx,
+	}
 
 	for _, d := range directories {
 		filenames, err := getFiles(d)

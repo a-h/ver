@@ -3,8 +3,10 @@ package git
 import (
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"os/exec"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -12,22 +14,33 @@ import (
 
 // Clone clones the git repository and places it in a temp directory.
 func Clone(repo string) (Git, error) {
-	target, err := ioutil.TempDir("", "ver_history")
+	u, err := url.Parse(repo)
+
+	if err != nil {
+		return Git{}, fmt.Errorf("failed to parse the repo URL %s with error %v", repo, err)
+	}
+
+	pkg := u.Host + u.Path
+
+	tempDir, err := ioutil.TempDir("", "ver_history")
 
 	if err != nil {
 		return Git{}, err
 	}
 
+	os.Mkdir(path.Join(tempDir, "bin"), 0755)
+
 	g := Git{
-		Location: target,
+		BaseLocation: tempDir,
+		PackageName:  pkg,
 	}
 
-	out, err := exec.Command("git", "clone", repo, target).CombinedOutput()
+	out, err := exec.Command("git", "clone", repo, g.PackageDirectory()).CombinedOutput()
 
 	if err != nil {
 		return g, fmt.Errorf("failed to clone repo %s to temp directory %s with err '%v' and message %s",
 			repo,
-			target,
+			g.PackageDirectory(),
 			err,
 			string(out))
 	}
@@ -37,8 +50,15 @@ func Clone(repo string) (Git, error) {
 
 // Git is a git repository, cloned from the Web.
 type Git struct {
-	// Location is the location on disk, e.g. /var/tmp/ver_history_12312321/
-	Location string
+	// PackageName is the name of the package, e.g. "github.com/a-h/ver"
+	PackageName string
+	// Base location is the location on disk, e.g. /var/tmp/ver_history_12312321/
+	BaseLocation string
+}
+
+// PackageDirectory joins the BaseLocation and the PackageName
+func (g Git) PackageDirectory() string {
+	return path.Join(g.BaseLocation, "src", g.PackageName)
 }
 
 // Commit is the data stored within a git log output.
@@ -58,11 +78,13 @@ func (c Commit) Date() time.Time {
 
 // CleanUp cleans up the temporary directory where the git repo has been stored.
 func (g Git) CleanUp() {
-	os.RemoveAll(g.Location)
+	os.RemoveAll(g.BaseLocation)
 }
 
 // Log gets the git log of the repository.
 func (g Git) Log() ([]Commit, error) {
+	os.Chdir(g.PackageDirectory())
+
 	history := []Commit{}
 	separator := ":ec0c7bc17e1ef95b57f47e6ee9f63f54ac187325:"
 	logfmt := "--pretty=format:" +
@@ -72,10 +94,13 @@ func (g Git) Log() ([]Commit, error) {
 		"%aE" + separator + // Author Email
 		"%ad" + separator + // Date
 		"%at" // Timestamp
-	out, err := exec.Command("git", "--no-pager", "log", "--first-parent", "master", "--reverse", logfmt).CombinedOutput()
+
+	cmd := exec.Command("git", "--no-pager", "log", "--first-parent", "master", "--reverse", logfmt)
+	cmd.Dir = g.PackageDirectory()
+	out, err := cmd.CombinedOutput()
 
 	if err != nil {
-		return history, fmt.Errorf("failed to get the log of %s with err '%v' and message '%s'", g.Location, err, string(out))
+		return history, fmt.Errorf("failed to get the log of %s with err '%v' and message '%s'", g.BaseLocation, err, string(out))
 	}
 
 	for _, line := range strings.Split(string(out), "\n") {
@@ -107,14 +132,14 @@ func (g Git) Log() ([]Commit, error) {
 
 // Get extracts all of the files from the given commit into a directory.
 func (g Git) Get(hash string) error {
-	os.Chdir(g.Location)
+	os.Chdir(g.PackageDirectory())
 
 	cmd := exec.Command("git", "checkout", hash, "-f")
-	cmd.Dir = g.Location
+	cmd.Dir = g.PackageDirectory()
 	out, err := cmd.CombinedOutput()
 
 	if err != nil {
-		return fmt.Errorf("failed to checkout hash %s in repo at %s with err '%v' message '%s'", hash, g.Location, err, string(out))
+		return fmt.Errorf("failed to checkout hash %s in repo at %s with err '%v' message '%s'", hash, g.PackageDirectory(), err, string(out))
 	}
 
 	return nil
@@ -122,14 +147,14 @@ func (g Git) Get(hash string) error {
 
 // Fetch the history from the remote.
 func (g Git) Fetch() error {
-	os.Chdir(g.Location)
+	os.Chdir(g.PackageDirectory())
 
 	cmd := exec.Command("git", "fetch", "--all")
-	cmd.Dir = g.Location
+	cmd.Dir = g.PackageDirectory()
 	out, err := cmd.CombinedOutput()
 
 	if err != nil {
-		return fmt.Errorf("failed to fetch all in repo at %s with err '%v' message '%s'", g.Location, err, string(out))
+		return fmt.Errorf("failed to fetch all in repo at %s with err '%v' message '%s'", g.PackageDirectory(), err, string(out))
 	}
 
 	return nil
@@ -137,14 +162,14 @@ func (g Git) Fetch() error {
 
 // Revert the temporary repository back to HEAD.
 func (g Git) Revert() error {
-	os.Chdir(g.Location)
+	os.Chdir(g.PackageDirectory())
 
 	cmd := exec.Command("git", "checkout", "master", "-f")
-	cmd.Dir = g.Location
+	cmd.Dir = g.PackageDirectory()
 	out, err := cmd.CombinedOutput()
 
 	if err != nil {
-		return fmt.Errorf("failed to revert %s back to head with err '%v' and message '%s'", g.Location, err, string(out))
+		return fmt.Errorf("failed to revert %s back to head with err '%v' and message '%s'", g.PackageDirectory(), err, string(out))
 	}
 
 	return nil

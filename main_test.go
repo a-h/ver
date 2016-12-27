@@ -17,7 +17,7 @@ func TestThatItemsAreExtracted(t *testing.T) {
 		t.Fatalf("Couldn't find path to example with error %v", err)
 	}
 
-	ps, err := signature.GetFromDirectory(path.Join(wd, "example"))
+	ps, err := signature.GetFromDirectory(os.Getenv("GOPATH"), path.Join(wd, "example"))
 
 	if err != nil {
 		t.Fatal("failed to get subpackages: " + err.Error())

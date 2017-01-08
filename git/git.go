@@ -35,7 +35,7 @@ func Clone(repo string) (Git, error) {
 		PackageName:  pkg,
 	}
 
-	out, err := exec.Command("git", "clone", repo, g.PackageDirectory()).CombinedOutput()
+	out, err := exec.Command("git", "clone", "-n", repo, g.PackageDirectory()).CombinedOutput()
 
 	if err != nil {
 		return g, fmt.Errorf("failed to clone repo %s to temp directory %s with err '%v' and message %s",

@@ -106,8 +106,7 @@ func main() {
 }
 
 func goget(gopath string, location string) error {
-	// Record timings for function
-	defer measure.TimeTrack(time.Now(), "goget")
+	defer measure.TimeTrack(time.Now(), "main.goget")
 
 	os.Chdir(location)
 
@@ -135,8 +134,7 @@ func goget(gopath string, location string) error {
 }
 
 func calculateVersionsFromSignatures(signatures []CommitSignature) {
-	// Record timings for function
-	defer measure.TimeTrack(time.Now(), "calculateVersionsFromSignatures")
+	defer measure.TimeTrack(time.Now(), "main.calculateVersionsFromSignatures")
 
 	version := Version{}
 
@@ -172,9 +170,6 @@ func calculateVersionsFromSignatures(signatures []CommitSignature) {
 }
 
 func addDeltaToVersion(v Version, d Version) Version {
-	// Record timings for function
-	defer measure.TimeTrack(time.Now(), "addDeltaToVersion")
-
 	return Version{
 		Major: v.Major + d.Major,
 		Minor: v.Minor + d.Minor,
@@ -183,8 +178,7 @@ func addDeltaToVersion(v Version, d Version) Version {
 }
 
 func calculateVersionDelta(sd diff.SummaryDiff) Version {
-	// Record timings for function
-	defer measure.TimeTrack(time.Now(), "calculateVersionDelta")
+	defer measure.TimeTrack(time.Now(), "main.calculateVersionDelta")
 
 	d := &Version{
 		Build: 1, // Always increment the build.
@@ -221,9 +215,6 @@ func calculateVersionDelta(sd diff.SummaryDiff) Version {
 }
 
 func updateBasedOn(d diff.Diff, binaryCompatibilityBroken *bool, newExportedData *bool) {
-	// Record timings for function
-	defer measure.TimeTrack(time.Now(), "updateBasedOn")
-
 	if d.Added > 0 {
 		*newExportedData = true
 	}

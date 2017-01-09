@@ -16,9 +16,7 @@ import (
 
 // Clone clones the git repository and places it in a temp directory.
 func Clone(repo string) (Git, error) {
-
-	// Record timings for function
-	defer measure.TimeTrack(time.Now(), "Clone")
+	defer measure.TimeTrack(time.Now(), "git.Clone")
 
 	u, err := url.Parse(repo)
 
@@ -84,19 +82,14 @@ func (c Commit) Date() time.Time {
 
 // CleanUp cleans up the temporary directory where the git repo has been stored.
 func (g Git) CleanUp() {
-
-	// Record timings for function
-	defer measure.TimeTrack(time.Now(), "CleanUp")
+	defer measure.TimeTrack(time.Now(), "git.CleanUp")
 
 	os.RemoveAll(g.BaseLocation)
-
 }
 
 // Log gets the git log of the repository.
 func (g Git) Log() ([]Commit, error) {
-
-	// Record timings for function
-	defer measure.TimeTrack(time.Now(), "Log")
+	defer measure.TimeTrack(time.Now(), "git.Log")
 
 	os.Chdir(g.PackageDirectory())
 
@@ -147,9 +140,7 @@ func (g Git) Log() ([]Commit, error) {
 
 // Get extracts all of the files from the given commit into a directory.
 func (g Git) Get(hash string) error {
-
-	// Record timings for function
-	defer measure.TimeTrack(time.Now(), "Get")
+	defer measure.TimeTrack(time.Now(), "git.Get")
 
 	os.Chdir(g.PackageDirectory())
 
@@ -166,9 +157,7 @@ func (g Git) Get(hash string) error {
 
 // Fetch the history from the remote.
 func (g Git) Fetch() error {
-
-	// Record timings for function
-	defer measure.TimeTrack(time.Now(), "Fetch")
+	defer measure.TimeTrack(time.Now(), "git.Fetch")
 
 	os.Chdir(g.PackageDirectory())
 
@@ -185,9 +174,7 @@ func (g Git) Fetch() error {
 
 // Revert the temporary repository back to HEAD.
 func (g Git) Revert() error {
-
-	// Record timings for function
-	defer measure.TimeTrack(time.Now(), "factorial")
+	defer measure.TimeTrack(time.Now(), "git.Revert")
 
 	os.Chdir(g.PackageDirectory())
 

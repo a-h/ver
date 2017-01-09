@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/a-h/ver/diff"
 	"github.com/a-h/ver/git"
+	"github.com/a-h/ver/measure"
 	"github.com/a-h/ver/signature"
 
 	"os"
@@ -104,6 +106,9 @@ func main() {
 }
 
 func goget(gopath string, location string) error {
+	// Record timings for function
+	defer measure.TimeTrack(time.Now(), "goget")
+
 	os.Chdir(location)
 
 	// Set the path, the Go tools take the first GOPATH in the set.
@@ -130,6 +135,9 @@ func goget(gopath string, location string) error {
 }
 
 func calculateVersionsFromSignatures(signatures []CommitSignature) {
+	// Record timings for function
+	defer measure.TimeTrack(time.Now(), "calculateVersionsFromSignatures")
+
 	version := Version{}
 
 	if len(signatures) > 0 {
@@ -164,6 +172,9 @@ func calculateVersionsFromSignatures(signatures []CommitSignature) {
 }
 
 func addDeltaToVersion(v Version, d Version) Version {
+	// Record timings for function
+	defer measure.TimeTrack(time.Now(), "addDeltaToVersion")
+
 	return Version{
 		Major: v.Major + d.Major,
 		Minor: v.Minor + d.Minor,
@@ -172,6 +183,9 @@ func addDeltaToVersion(v Version, d Version) Version {
 }
 
 func calculateVersionDelta(sd diff.SummaryDiff) Version {
+	// Record timings for function
+	defer measure.TimeTrack(time.Now(), "calculateVersionDelta")
+
 	d := &Version{
 		Build: 1, // Always increment the build.
 	}
@@ -207,6 +221,9 @@ func calculateVersionDelta(sd diff.SummaryDiff) Version {
 }
 
 func updateBasedOn(d diff.Diff, binaryCompatibilityBroken *bool, newExportedData *bool) {
+	// Record timings for function
+	defer measure.TimeTrack(time.Now(), "updateBasedOn")
+
 	if d.Added > 0 {
 		*newExportedData = true
 	}

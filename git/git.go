@@ -10,10 +10,16 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/a-h/ver/measure"
 )
 
 // Clone clones the git repository and places it in a temp directory.
 func Clone(repo string) (Git, error) {
+
+	// Record timings for function
+	defer measure.TimeTrack(time.Now(), "Clone")
+
 	u, err := url.Parse(repo)
 
 	if err != nil {
@@ -78,11 +84,20 @@ func (c Commit) Date() time.Time {
 
 // CleanUp cleans up the temporary directory where the git repo has been stored.
 func (g Git) CleanUp() {
+
+	// Record timings for function
+	defer measure.TimeTrack(time.Now(), "CleanUp")
+
 	os.RemoveAll(g.BaseLocation)
+
 }
 
 // Log gets the git log of the repository.
 func (g Git) Log() ([]Commit, error) {
+
+	// Record timings for function
+	defer measure.TimeTrack(time.Now(), "Log")
+
 	os.Chdir(g.PackageDirectory())
 
 	history := []Commit{}
@@ -132,6 +147,10 @@ func (g Git) Log() ([]Commit, error) {
 
 // Get extracts all of the files from the given commit into a directory.
 func (g Git) Get(hash string) error {
+
+	// Record timings for function
+	defer measure.TimeTrack(time.Now(), "Get")
+
 	os.Chdir(g.PackageDirectory())
 
 	cmd := exec.Command("git", "checkout", hash, "-f")
@@ -147,9 +166,13 @@ func (g Git) Get(hash string) error {
 
 // Fetch the history from the remote.
 func (g Git) Fetch() error {
+
+	// Record timings for function
+	defer measure.TimeTrack(time.Now(), "Fetch")
+
 	os.Chdir(g.PackageDirectory())
 
-	cmd := exec.Command("git", "fetch", "--all")
+	cmd := exec.Command("git", "fetch", "-n", "--all")
 	cmd.Dir = g.PackageDirectory()
 	out, err := cmd.CombinedOutput()
 
@@ -162,6 +185,10 @@ func (g Git) Fetch() error {
 
 // Revert the temporary repository back to HEAD.
 func (g Git) Revert() error {
+
+	// Record timings for function
+	defer measure.TimeTrack(time.Now(), "factorial")
+
 	os.Chdir(g.PackageDirectory())
 
 	cmd := exec.Command("git", "checkout", "master", "-f")

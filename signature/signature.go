@@ -36,8 +36,7 @@ type Signature struct {
 
 // GetFromDirectory gets the signature of a directory of Go files, including subdirectories.
 func GetFromDirectory(gopath string, dir string) (PackageSignatures, error) {
-	// Record timings for function
-	defer measure.TimeTrack(time.Now(), "GetFromDirectory")
+	defer measure.TimeTrack(time.Now(), "signature.GetFromDirectory")
 
 	// Iterate subdirectories too.
 	directories, err := walkDirectories(dir)
@@ -73,8 +72,7 @@ func GetFromDirectory(gopath string, dir string) (PackageSignatures, error) {
 }
 
 func walkDirectories(dir string) ([]string, error) {
-	// Record timings for function
-	defer measure.TimeTrack(time.Now(), "walkDirectories")
+	defer measure.TimeTrack(time.Now(), "signature.walkDirectories")
 
 	rv := []string{}
 
@@ -100,8 +98,7 @@ func walkDirectories(dir string) ([]string, error) {
 }
 
 func getFiles(dir string) ([]string, error) {
-	// Record timings for function
-	defer measure.TimeTrack(time.Now(), "getFiles")
+	defer measure.TimeTrack(time.Now(), "signature.getFiles")
 
 	files := []string{}
 
@@ -123,8 +120,7 @@ func getFiles(dir string) ([]string, error) {
 // GetFromProgram gets a set of signatures for a program loaded with the loader.Config.
 // Only packages with a matching prefix will be extracted.
 func GetFromProgram(prog *loader.Program, prefix string) PackageSignatures {
-	// Record timings for function
-	defer measure.TimeTrack(time.Now(), "GetFromProgram")
+	defer measure.TimeTrack(time.Now(), "signature.GetFromProgram")
 
 	rv := PackageSignatures{}
 
@@ -144,8 +140,7 @@ func GetFromProgram(prog *loader.Program, prefix string) PackageSignatures {
 
 // GetFromScope gets a Signature for a given Scope.
 func GetFromScope(s *types.Scope) Signature {
-	// Record timings for function
-	defer measure.TimeTrack(time.Now(), "GetFromScope")
+	defer measure.TimeTrack(time.Now(), "signature.GetFromScope")
 
 	rv := NewSignature()
 
@@ -195,8 +190,7 @@ func GetFromScope(s *types.Scope) Signature {
 }
 
 func renderStruct(name string, s *types.Struct) string {
-	// Record timings for function
-	defer measure.TimeTrack(time.Now(), "renderStruct")
+	defer measure.TimeTrack(time.Now(), "signature.renderStruct")
 
 	msg := bytes.NewBufferString("struct")
 

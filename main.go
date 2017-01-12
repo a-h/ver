@@ -98,7 +98,7 @@ func main() {
 		return
 	}
 
-	fmt.Printf("About to calcaulate signatures...\n")
+	fmt.Printf("About to calculate signatures...\n")
 
 	calculateVersionsFromSignatures(signatures)
 }

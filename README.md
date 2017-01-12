@@ -129,7 +129,7 @@ docker build -t ver .
 ```
 
 ```
-docker run ver ver -r https://github.com/a-h/terminator
+docker run ver -r https://github.com/a-h/terminator
 ``` 
 
 # Possible improvements

@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/a-h/ver/diff"
 	"github.com/a-h/ver/git"
+	"github.com/a-h/ver/measure"
 	"github.com/a-h/ver/signature"
 
 	"os"
@@ -104,6 +106,8 @@ func main() {
 }
 
 func goget(gopath string, location string) error {
+	defer measure.TimeTrack(time.Now(), "main.goget")
+
 	os.Chdir(location)
 
 	// Set the path, the Go tools take the first GOPATH in the set.
@@ -130,6 +134,8 @@ func goget(gopath string, location string) error {
 }
 
 func calculateVersionsFromSignatures(signatures []CommitSignature) {
+	defer measure.TimeTrack(time.Now(), "main.calculateVersionsFromSignatures")
+
 	version := Version{}
 
 	if len(signatures) > 0 {
@@ -172,6 +178,8 @@ func addDeltaToVersion(v Version, d Version) Version {
 }
 
 func calculateVersionDelta(sd diff.SummaryDiff) Version {
+	defer measure.TimeTrack(time.Now(), "main.calculateVersionDelta")
+
 	d := &Version{
 		Build: 1, // Always increment the build.
 	}

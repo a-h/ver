@@ -10,6 +10,9 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"github.com/a-h/ver/measure"
 
 	"golang.org/x/tools/go/loader"
 )
@@ -33,6 +36,8 @@ type Signature struct {
 
 // GetFromDirectory gets the signature of a directory of Go files, including subdirectories.
 func GetFromDirectory(gopath string, dir string) (PackageSignatures, error) {
+	defer measure.TimeTrack(time.Now(), "signature.GetFromDirectory")
+
 	// Iterate subdirectories too.
 	directories, err := walkDirectories(dir)
 
@@ -67,6 +72,8 @@ func GetFromDirectory(gopath string, dir string) (PackageSignatures, error) {
 }
 
 func walkDirectories(dir string) ([]string, error) {
+	defer measure.TimeTrack(time.Now(), "signature.walkDirectories")
+
 	rv := []string{}
 
 	err := filepath.Walk(dir, func(walkedPath string, f os.FileInfo, err error) error {
@@ -91,6 +98,8 @@ func walkDirectories(dir string) ([]string, error) {
 }
 
 func getFiles(dir string) ([]string, error) {
+	defer measure.TimeTrack(time.Now(), "signature.getFiles")
+
 	files := []string{}
 
 	fi, err := ioutil.ReadDir(dir)
@@ -111,6 +120,8 @@ func getFiles(dir string) ([]string, error) {
 // GetFromProgram gets a set of signatures for a program loaded with the loader.Config.
 // Only packages with a matching prefix will be extracted.
 func GetFromProgram(prog *loader.Program, prefix string) PackageSignatures {
+	defer measure.TimeTrack(time.Now(), "signature.GetFromProgram")
+
 	rv := PackageSignatures{}
 
 	for pkg := range prog.AllPackages {
@@ -129,6 +140,8 @@ func GetFromProgram(prog *loader.Program, prefix string) PackageSignatures {
 
 // GetFromScope gets a Signature for a given Scope.
 func GetFromScope(s *types.Scope) Signature {
+	defer measure.TimeTrack(time.Now(), "signature.GetFromScope")
+
 	rv := NewSignature()
 
 	for _, sn := range s.Names() {
@@ -177,6 +190,8 @@ func GetFromScope(s *types.Scope) Signature {
 }
 
 func renderStruct(name string, s *types.Struct) string {
+	defer measure.TimeTrack(time.Now(), "signature.renderStruct")
+
 	msg := bytes.NewBufferString("struct")
 
 	if name != "" {

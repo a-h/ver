@@ -10,10 +10,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/a-h/ver/measure"
 )
 
 // Clone clones the git repository and places it in a temp directory.
 func Clone(repo string) (Git, error) {
+	defer measure.TimeTrack(time.Now(), "git.Clone")
+
 	u, err := url.Parse(repo)
 
 	if err != nil {
@@ -35,7 +39,7 @@ func Clone(repo string) (Git, error) {
 		PackageName:  pkg,
 	}
 
-	out, err := exec.Command("git", "clone", repo, g.PackageDirectory()).CombinedOutput()
+	out, err := exec.Command("git", "clone", "-n", repo, g.PackageDirectory()).CombinedOutput()
 
 	if err != nil {
 		return g, fmt.Errorf("failed to clone repo %s to temp directory %s with err '%v' and message %s",
@@ -78,11 +82,15 @@ func (c Commit) Date() time.Time {
 
 // CleanUp cleans up the temporary directory where the git repo has been stored.
 func (g Git) CleanUp() {
+	defer measure.TimeTrack(time.Now(), "git.CleanUp")
+
 	os.RemoveAll(g.BaseLocation)
 }
 
 // Log gets the git log of the repository.
 func (g Git) Log() ([]Commit, error) {
+	defer measure.TimeTrack(time.Now(), "git.Log")
+
 	os.Chdir(g.PackageDirectory())
 
 	history := []Commit{}
@@ -132,6 +140,8 @@ func (g Git) Log() ([]Commit, error) {
 
 // Get extracts all of the files from the given commit into a directory.
 func (g Git) Get(hash string) error {
+	defer measure.TimeTrack(time.Now(), "git.Get")
+
 	os.Chdir(g.PackageDirectory())
 
 	cmd := exec.Command("git", "checkout", hash, "-f")
@@ -147,9 +157,11 @@ func (g Git) Get(hash string) error {
 
 // Fetch the history from the remote.
 func (g Git) Fetch() error {
+	defer measure.TimeTrack(time.Now(), "git.Fetch")
+
 	os.Chdir(g.PackageDirectory())
 
-	cmd := exec.Command("git", "fetch", "--all")
+	cmd := exec.Command("git", "fetch", "-n", "--all")
 	cmd.Dir = g.PackageDirectory()
 	out, err := cmd.CombinedOutput()
 
@@ -162,6 +174,8 @@ func (g Git) Fetch() error {
 
 // Revert the temporary repository back to HEAD.
 func (g Git) Revert() error {
+	defer measure.TimeTrack(time.Now(), "git.Revert")
+
 	os.Chdir(g.PackageDirectory())
 
 	cmd := exec.Command("git", "checkout", "master", "-f")

@@ -12,3 +12,15 @@ type Version struct {
 func (v Version) String() string {
 	return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Build)
 }
+
+func (v Version) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + v.String() + "\""), nil
+}
+
+func (v Version) Add(d Version) Version {
+	return Version{
+		Major: v.Major + d.Major,
+		Minor: v.Minor + d.Minor,
+		Build: v.Build + d.Build,
+	}
+}

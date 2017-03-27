@@ -70,14 +70,6 @@ func TestThatBinaryCompatibilityAndNewExportedDataCanBeUpdated(t *testing.T) {
 	}
 }
 
-func TestThatVersionsCanBeUpdated(t *testing.T) {
-	v2 := addDeltaToVersion(Version{Major: 1, Minor: 1, Build: 1}, Version{Major: 1, Minor: 1, Build: 1})
-
-	if v2.String() != "2.2.2" {
-		t.Errorf("Expected %s, but got %s", "2.2.2", v2.String())
-	}
-}
-
 func TestThatVersionDeltasCanBeCalculated(t *testing.T) {
 	tests := []struct {
 		name     string

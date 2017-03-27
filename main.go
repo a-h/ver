@@ -10,10 +10,13 @@ import (
 	"github.com/a-h/ver/git"
 	"github.com/a-h/ver/signature"
 
+	"encoding/json"
+	"net/url"
 	"os"
 )
 
 var repo = flag.String("r", "", "The git repo to clone and analyse, e.g. https://github.com/a-h/ver")
+var out = flag.String("o", "", "When set, outputs to a file in JSON format.")
 
 func main() {
 	flag.Parse()
@@ -23,16 +26,31 @@ func main() {
 		os.Exit(-1)
 	}
 
+	repoURL, err := url.Parse(*repo)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to parse URL %v: %v\n", *repo, err)
+		os.Exit(-1)
+	}
+
+	var outFile *os.File
+	if *out != "" {
+		outFile, err = os.Create(*out)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to open output file: %v\n", err)
+			os.Exit(-1)
+		}
+	}
+
 	gitRepo, err := git.Clone(*repo)
 	defer gitRepo.CleanUp()
 
 	if err != nil {
-		fmt.Printf("Failed to clone git repo with error: %s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "Failed to clone git repo: %v\n", err)
 		os.Exit(-1)
 	}
 
 	if err = gitRepo.Fetch(); err != nil {
-		fmt.Printf("Failed to fetch from git repo with error: %s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "Failed to fetch from git repo: %v\n", err)
 		os.Exit(-1)
 	}
 
@@ -41,7 +59,7 @@ func main() {
 	history, err := gitRepo.Log()
 
 	if err != nil {
-		fmt.Printf("Failed to get the git history with error: %s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "Failed to get the git history: %v\n", err)
 		os.Exit(-1)
 	}
 
@@ -59,7 +77,7 @@ func main() {
 		err := gitRepo.Get(h.Hash)
 
 		if err != nil {
-			cs.Error = fmt.Errorf("Failed to get commit %s with error: %s\n", h.Hash, err.Error())
+			cs.Error = fmt.Errorf("Failed to get commit %s: %s\n", h.Hash, err.Error())
 			signatures[idx] = *cs
 			continue
 		}
@@ -75,7 +93,7 @@ func main() {
 		sig, err := signature.GetFromDirectory(gitRepo.BaseLocation, gitRepo.PackageDirectory())
 
 		if err != nil {
-			cs.Error = fmt.Errorf("Failed to get signatures of package at commit %s with error: %s\n",
+			cs.Error = fmt.Errorf("Failed to get signatures of package at commit %s: %s\n",
 				h.Hash, err.Error())
 			signatures[idx] = *cs
 			continue
@@ -87,20 +105,42 @@ func main() {
 		err = gitRepo.Revert()
 
 		if err != nil {
-			fmt.Printf("Failed to revert the repo back to HEAD with error: %s\n", err.Error())
+			fmt.Fprintf(os.Stderr, "Failed to revert the repo back to HEAD: %s\n", err.Error())
 			fatalError = true
 			break
 		}
 	}
 
 	if fatalError {
-		fmt.Printf("Failed with fatal error.\n")
+		fmt.Fprintf(os.Stderr, "Failed with fatal error.\n")
+		os.Exit(-1)
 		return
 	}
 
 	fmt.Printf("About to calculate signatures...\n")
 
-	calculateVersionsFromSignatures(signatures)
+	addPackageNameAndVersionToSignatures(signatures, repoURL.Host+repoURL.Path)
+
+	for _, cs := range signatures {
+		fmt.Println()
+		fmt.Printf("Commit: %s\n", cs.Commit.Hash)
+		fmt.Printf("Subject: %s\n", cs.Commit.Subject)
+		fmt.Printf("Date: %v\n", cs.Commit.Date())
+		fmt.Printf("Version: %v\n", cs.Version)
+		if err != nil {
+			fmt.Printf("Error: %v\n", cs.Error)
+		}
+		if outFile != nil {
+			j, err := json.Marshal(cs)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to marshal JSON output: %v", err)
+			}
+			_, err = outFile.Write(append(j, byte(0x0A)))
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to write to output file: %v", err)
+			}
+		}
+	}
 }
 
 func goget(gopath string, location string) error {
@@ -123,56 +163,43 @@ func goget(gopath string, location string) error {
 	out, err := cmd.CombinedOutput()
 
 	if err != nil {
-		return fmt.Errorf("failed to go get all in repo with gopath %s at directory %s with err '%v' message '%s'", gopath, location, err, string(out))
+		return fmt.Errorf("failed to go get all in repo with gopath %s at directory %s: '%v' message '%s'", gopath, location, err, string(out))
 	}
 
 	return nil
 }
 
-func calculateVersionsFromSignatures(signatures []CommitSignature) {
+func addPackageNameAndVersionToSignatures(signatures []CommitSignature, packageName string) {
 	version := Version{}
 
 	if len(signatures) > 0 {
-		current := signatures[0]
+		previous := signatures[0]
+		signatures[0].Package = packageName
 
-		for _, cs := range signatures[1:] {
-			if cs.Error != nil {
+		for i, current := range signatures[1:] {
+			signatures[i].Package = packageName
+			if current.Error != nil {
 				// Add 1 to the build, even though it wasn't successfully handled.
-				version = addDeltaToVersion(version, Version{Build: 1})
-
-				fmt.Println()
-				fmt.Printf("Commit: %s\n", cs.Commit.Hash)
-				fmt.Printf("Commit: %s\n", cs.Commit.Subject)
-				fmt.Printf("Date: %s\n", cs.Commit.Date())
-				fmt.Printf("Error: %s\n", cs.Error.Error())
+				version = version.Add(Version{Build: 1})
+				signatures[i].Version = version
 				continue
 			}
 
 			// Calculate the diff against the previous version.
-			diff := diff.Calculate(current.Signature, cs.Signature)
+			diff := diff.Calculate(previous.Signature, current.Signature)
 			// Work out what the version increment should be.
 			delta := calculateVersionDelta(diff)
-			version = addDeltaToVersion(version, delta)
+			version = version.Add(delta)
+			signatures[i].Version = version
 
-			fmt.Println()
-			fmt.Printf("Commit: %s\n", cs.Commit.Hash)
-			fmt.Printf("Subject: %s\n", cs.Commit.Subject)
-			fmt.Printf("Date: %s\n", cs.Commit.Date())
-			fmt.Printf("Version: %s\n", version.String())
+			// Update the previous version.
+			previous = current
 		}
 	}
 }
 
-func addDeltaToVersion(v Version, d Version) Version {
-	return Version{
-		Major: v.Major + d.Major,
-		Minor: v.Minor + d.Minor,
-		Build: v.Build + d.Build,
-	}
-}
-
 func calculateVersionDelta(sd diff.SummaryDiff) Version {
-	d := &Version{
+	d := Version{
 		Build: 1, // Always increment the build.
 	}
 
@@ -203,7 +230,7 @@ func calculateVersionDelta(sd diff.SummaryDiff) Version {
 		d.Minor = 1
 	}
 
-	return *d
+	return d
 }
 
 func updateBasedOn(d diff.Diff, binaryCompatibilityBroken *bool, newExportedData *bool) {
@@ -218,7 +245,9 @@ func updateBasedOn(d diff.Diff, binaryCompatibilityBroken *bool, newExportedData
 
 // CommitSignature is the signature of a commit.
 type CommitSignature struct {
+	Package   string                      `json:"pkg"`
 	Commit    git.Commit                  `json:"commit"`
-	Signature signature.PackageSignatures `json:"signature"`
+	Signature signature.PackageSignatures `json:"-"`
 	Error     error                       `json:"error"`
+	Version   Version                     `json:"v"`
 }

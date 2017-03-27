@@ -119,3 +119,52 @@ func TestThatVersionDeltasCanBeCalculated(t *testing.T) {
 		}
 	}
 }
+
+func TestAddPackageNameAndVersionToSignaturesFunction(t *testing.T) {
+	a := CommitSignature{}
+	a.Hash = "a"
+	a.Email = "a@exapmle.com"
+	a.Name = "Name A"
+	a.Package = ""
+	a.Signature = signature.PackageSignatures{
+		"packageA": signature.Signature{
+			Functions: []string{"func A() string"},
+		},
+	}
+	a.Subject = "Subject A"
+	a.Version = Version{1, 0, 0}
+
+	b := CommitSignature{}
+	b.Hash = "b"
+	b.Email = "b@exapmle.com"
+	b.Name = "Name B"
+	b.Package = ""
+	b.Signature = signature.PackageSignatures{
+		"packageA": signature.Signature{
+			Functions: []string{"func A() string"},
+		},
+	}
+	b.Subject = "Subject A"
+	b.Version = Version{0, 0, 1}
+
+	signatures := []*CommitSignature{&a, &b}
+
+	expectedPackageName := "github.com/a-h/example"
+	addPackageNameAndVersionToSignatures(signatures, expectedPackageName)
+
+	expectedVersion := Version{0, 0, 0}
+	if a.Version != expectedVersion {
+		t.Errorf("expected the first commit to have a version of 0.0.0, but was %v", a.Version)
+	}
+	if a.Package != expectedPackageName {
+		t.Errorf("(1) expected package name %v, but was '%v'", expectedPackageName, a.Package)
+	}
+
+	expectedVersion = Version{0, 0, 1}
+	if b.Version != expectedVersion {
+		t.Errorf("expected the second commit to have a version of %v, but was %v", expectedVersion, b.Version)
+	}
+	if b.Package != expectedPackageName {
+		t.Errorf("(2) expected package name %v, but was '%v'", expectedPackageName, b.Package)
+	}
+}

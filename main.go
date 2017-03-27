@@ -26,7 +26,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	repoURL, err := url.Parse(*repo)
+	repoURL, err := url.Parse(strings.ToLower(*repo))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to parse URL %v: %v\n", *repo, err)
 		os.Exit(-1)
@@ -63,7 +63,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	signatures := make([]CommitSignature, len(history))
+	signatures := make([]*CommitSignature, len(history))
 
 	fatalError := false
 
@@ -78,7 +78,7 @@ func main() {
 
 		if err != nil {
 			cs.Error = fmt.Errorf("Failed to get commit %s: %s\n", h.Hash, err.Error())
-			signatures[idx] = *cs
+			signatures[idx] = cs
 			continue
 		}
 
@@ -86,7 +86,7 @@ func main() {
 
 		if err != nil {
 			cs.Error = err
-			signatures[idx] = *cs
+			signatures[idx] = cs
 			continue
 		}
 
@@ -95,12 +95,12 @@ func main() {
 		if err != nil {
 			cs.Error = fmt.Errorf("Failed to get signatures of package at commit %s: %s\n",
 				h.Hash, err.Error())
-			signatures[idx] = *cs
+			signatures[idx] = cs
 			continue
 		}
 
 		cs.Signature = sig
-		signatures[idx] = *cs
+		signatures[idx] = cs
 
 		err = gitRepo.Revert()
 
@@ -169,19 +169,20 @@ func goget(gopath string, location string) error {
 	return nil
 }
 
-func addPackageNameAndVersionToSignatures(signatures []CommitSignature, packageName string) {
+func addPackageNameAndVersionToSignatures(signatures []*CommitSignature, packageName string) {
 	version := Version{}
 
 	if len(signatures) > 0 {
 		previous := signatures[0]
-		signatures[0].Package = packageName
+		previous.Package = packageName
+		previous.Version = version
 
-		for i, current := range signatures[1:] {
-			signatures[i].Package = packageName
+		for _, current := range signatures[1:] {
+			current.Package = packageName
 			if current.Error != nil {
 				// Add 1 to the build, even though it wasn't successfully handled.
 				version = version.Add(Version{Build: 1})
-				signatures[i].Version = version
+				current.Version = version
 				continue
 			}
 
@@ -190,7 +191,7 @@ func addPackageNameAndVersionToSignatures(signatures []CommitSignature, packageN
 			// Work out what the version increment should be.
 			delta := calculateVersionDelta(diff)
 			version = version.Add(delta)
-			signatures[i].Version = version
+			current.Version = version
 
 			// Update the previous version.
 			previous = current
@@ -245,8 +246,8 @@ func updateBasedOn(d diff.Diff, binaryCompatibilityBroken *bool, newExportedData
 
 // CommitSignature is the signature of a commit.
 type CommitSignature struct {
+	git.Commit
 	Package   string                      `json:"pkg"`
-	Commit    git.Commit                  `json:"commit"`
 	Signature signature.PackageSignatures `json:"-"`
 	Error     error                       `json:"error"`
 	Version   Version                     `json:"v"`

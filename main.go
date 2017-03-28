@@ -35,6 +35,7 @@ func main() {
 	var outFile *os.File
 	if *out != "" {
 		outFile, err = os.Create(*out)
+		defer outFile.Close()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to open output file: %v\n", err)
 			os.Exit(-1)
@@ -135,7 +136,8 @@ func main() {
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to marshal JSON output: %v", err)
 			}
-			_, err = outFile.Write(append(j, byte(0x0A)))
+			_, err = outFile.Write(j)
+			outFile.Write([]byte{0x0A})
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to write to output file: %v", err)
 			}
